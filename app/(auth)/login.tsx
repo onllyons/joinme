@@ -42,11 +42,15 @@ export default function LoginScreen() {
   const router = useRouter();
   const styles = createStyles();
   const { sendDefaultRequest } = useRequests();
-  
+
+
+
   let restartApp = () => {};
   // const { restartApp } = useData();
-  const [loader, setLoader] = useState(false);
 
+
+
+  const [loader, setLoader] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [secure, setSecure] = useState(true);
