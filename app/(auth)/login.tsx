@@ -11,15 +11,13 @@ import {
   Keyboard,
 } from "react-native";
 import { useRouter, Link } from "expo-router";
-// ❌ remove ThemeContext
-// import { useTheme } from "@/contexts/ThemeContext";
-import { Text } from "@/components/ui";                // dacă nu ai alias '@', folosește cale relativă
+import { Text } from "@/components/ui";
 import { AppleLogin } from "@/components/auth/AppleLogin";
 import { GoogleLogin } from "@/components/auth/GoogleLogin";
 import Loader from "@/components/modals/Loader";
 import { SERVER_AJAX_URL, SuccessResponse, useRequests } from "@/hooks/useRequests";
 import { login, User, UserTokens } from "@/utils/Auth";
-import { useData } from "@/contexts/DataContext";
+// import { useData } from "@/contexts/DataContext";
 
 type AuthResponse = SuccessResponse & {
   userData: User;
@@ -44,7 +42,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const styles = createStyles();
   const { sendDefaultRequest } = useRequests();
-  const { restartApp } = useData();
+  
+  let restartApp = () => {};
+  // const { restartApp } = useData();
   const [loader, setLoader] = useState(false);
 
   const [email, setEmail] = useState("");

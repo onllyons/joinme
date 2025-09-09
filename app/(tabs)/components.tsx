@@ -4,17 +4,18 @@ import { router } from 'expo-router';
 
 export default function ComponentsScreen() {
   const navigationItems = [
-    { title: 'Login', route: '/auth/login' },
-    { title: 'Register', route: '/auth/register' },
-    { title: 'Forgot Password', route: '/auth/forgot-password' },
-    { title: 'Reset Password', route: '/auth/reset-password' },
-    { title: 'Change Password', route: '/auth/change-password' },
+    { title: 'Login', route: '/(auth)/login' },
+    { title: 'Register', route: '/(auth)/register' },
+    { title: 'Forgot Password', route: '/(auth)/forgot-password' },
+    { title: 'Reset Password', route: '/(auth)/reset-password' },
+    { title: 'Change Password', route: '/(auth)/change-password' },
   ];
+
 
   const handleNavigation = (route: string) => {
     router.push(route as any);
   };
-
+ 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

@@ -2,7 +2,14 @@ import React from 'react';
 import { Text as RNText, TextStyle } from 'react-native';
 
 export type TextVariant = 'title' | 'headline' | 'body' | 'caption';
-export type TextColor = 'primary' | 'secondary' | 'error' | 'success' | 'onBackground' | 'onSurface' | 'onSurfaceVariant';
+export type TextColor =
+  | 'primary'
+  | 'secondary'
+  | 'error'
+  | 'success'
+  | 'onBackground'
+  | 'onSurface'
+  | 'onSurfaceVariant';
 
 interface TextProps {
   children: React.ReactNode;
@@ -13,6 +20,25 @@ interface TextProps {
   numberOfLines?: number;
 }
 
+// Paletă de culori simplă
+const COLORS: Record<TextColor, string> = {
+  primary: '#0A84FF',
+  secondary: '#8E8E93',
+  error: '#FF3B30',
+  success: '#34C759',
+  onBackground: '#111111',
+  onSurface: '#111111',
+  onSurfaceVariant: '#6B7280',
+};
+
+// Tipografie simplă
+const TYPOGRAPHY = {
+  title: { fontSize: 28, lineHeight: 34, fontWeight: '700' as const },
+  headline: { fontSize: 20, lineHeight: 24, fontWeight: '600' as const },
+  body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const },
+  caption: { fontSize: 13, lineHeight: 16, fontWeight: '400' as const },
+};
+
 export function Text({
   children,
   variant = 'body',
@@ -21,46 +47,8 @@ export function Text({
   accessibilityLabel,
   numberOfLines,
 }: TextProps) {
-  const { theme } = useTheme();
-
-  const getTextColor = () => {
-    switch (color) {
-      case 'primary':
-        return theme.colors.primary;
-      case 'secondary':
-        return theme.colors.secondary;
-      case 'error':
-        return theme.colors.error;
-      case 'success':
-        return theme.colors.success;
-      case 'onBackground':
-        return theme.colors.onBackground;
-      case 'onSurface':
-        return theme.colors.onSurface;
-      case 'onSurfaceVariant':
-        return theme.colors.onSurfaceVariant;
-      default:
-        return theme.colors.onSurface;
-    }
-  };
-
-  const getTypographyStyle = () => {
-    switch (variant) {
-      case 'title':
-        return theme.typography.title;
-      case 'headline':
-        return theme.typography.headline;
-      case 'body':
-        return theme.typography.body;
-      case 'caption':
-        return theme.typography.caption;
-      default:
-        return theme.typography.body;
-    }
-  };
-
-  const typographyStyle = getTypographyStyle();
-  const textColor = getTextColor();
+  const typographyStyle = TYPOGRAPHY[variant] ?? TYPOGRAPHY.body;
+  const textColor = COLORS[color] ?? COLORS.onSurface;
 
   return (
     <RNText
