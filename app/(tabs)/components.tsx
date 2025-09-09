@@ -7,7 +7,6 @@ export default function ComponentsScreen() {
     { title: 'Login', route: '/(auth)/login' },
     { title: 'Register', route: '/(auth)/register' },
     { title: 'Forgot Password', route: '/(auth)/forgot-password' },
-    { title: 'Reset Password', route: '/(auth)/reset-password' },
     { title: 'Change Password', route: '/(auth)/change-password' },
   ];
 

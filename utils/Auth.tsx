@@ -1,4 +1,4 @@
-import {deleteStoredValueAsync, getStoredValue, setStoredValueAsync} from "./Store";
+import {deleteStoredValueAsync, setStoredValueAsync} from "./Store";
 
 export type User = {
     id: number;
@@ -55,6 +55,11 @@ export const logout = async (): Promise<void> => {
 };
 
 export const isAuthenticated = (): boolean => user !== null;
+
+export const getAuthUser = (): User => {
+    if (!isAuthenticated()) throw new Error("User is not authenticated");
+    return user as User;
+};
 
 export const getUser = () => user;
 

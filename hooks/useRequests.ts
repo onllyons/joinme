@@ -9,7 +9,7 @@ import {
 
 import {getTokens, isAuthenticated, logout, setTokens, UserTokens} from "@/utils/Auth";
 
-export const SERVER_URL: string = "https://biosign-app.com";
+export const SERVER_URL: string = "https://joinme-app.com";
 export const SERVER_AJAX_URL: string = `${SERVER_URL}/backend/mobile_app`;
 
 type ShowOptions = {
@@ -38,11 +38,6 @@ export type ErrorResponse = {
     message?: string;
 
     [key: string]: unknown;
-};
-
-const getFileTypeFromUri = (uri: string) => {
-    const match = /\.(\w+)$/.exec(uri);
-    return match ? match[1] : null;
 };
 
 export const useRequests = () => {
@@ -108,6 +103,7 @@ export const useRequests = () => {
                 "name" in value &&
                 "mime" in value
               ) {
+                  // @ts-ignore — в React Native типизация FormData не идеально точная
                 formData.append(key, {
                   uri: value.uri,
                   name: value.name,
