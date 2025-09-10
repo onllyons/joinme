@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "Join Me",
-    "slug": "join-me",
+    "slug": "join-me-dan",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "join-me",
+    "scheme": "join-me-dan",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "usesAppleSignIn": true,
-      "bundleIdentifier": "com.onllyons.joinme",
+      "bundleIdentifier": "com.dan.joinme",
       "supportsTablet": true,
       "buildNumber": "1",
       "infoPlist": {
@@ -18,7 +18,7 @@
       }
     },
     "android": {
-      "package": "com.onllyons.joinme",
+      "package": "com.dan.joinme",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -42,7 +42,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ec57a2de-6800-4a2b-ab3b-6ac2676302b1"
+        "projectId": "46190288-4abe-4811-aceb-51e2575f4c46"
       }
     }
   }
