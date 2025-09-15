@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { SERVER_AJAX_URL, useRequests } from '@/hooks/useRequests';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const categories = ['Sport', 'Family', 'Music', 'Art', 'Health', 'Party', 'Business'];
 const durations = ['30m', '1h', '1h 30m', '2h', 'Custom'];
@@ -27,8 +27,8 @@ interface FormData {
   title: string;
   description: string;
   category: string;
-  date: Date;
-  time: Date;
+  date: Date; time: Date;
+  endDate?: Date; endTime?: Date;
   duration: string;
   location: string;
   capacity: string;
@@ -47,6 +47,7 @@ export default function CreateEventScreen() {
     category: 'Sport',
     date: new Date(),
     time: new Date(),
+    endDate: new Date(), endTime: new Date(),
     duration: '1h',
     location: '',
     capacity: '',
@@ -58,12 +59,14 @@ export default function CreateEventScreen() {
     joinType: 'Join directly',
   });
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { sendDefaultRequest } = useRequests();
+  const [isDateModal, setDateModal] = useState(false);
+  const [isTimeModal, setTimeModal] = useState(false);
 
+  const [isEndDateModal, setEndDateModal] = useState(false);
+  const [isEndTimeModal, setEndTimeModal] = useState(false);
 
   // const validateForm = (): boolean => {
   //   const newErrors: Record<string, string> = {};
@@ -110,7 +113,13 @@ export default function CreateEventScreen() {
   //   return Object.keys(newErrors).length === 0;
   // };
 
-const durationToMin = (d: string): number => {
+const buildStartsAt = (date: Date, time: Date) => {
+  const dt = new Date(date);
+  dt.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return Math.floor(dt.getTime() / 1000);
+};
+
+const presetDurationToMin = (d: string): number => {
   switch (d) {
     case '30m': return 30;
     case '1h': return 60;
@@ -119,38 +128,71 @@ const durationToMin = (d: string): number => {
     default: return 60;
   }
 };
-
-const buildStartsAt = (date: Date, time: Date) => {
-  const dt = new Date(date);
-  dt.setHours(time.getHours(), time.getMinutes(), 0, 0);
-  return Math.floor(dt.getTime() / 1000);
+const computeDuration = (d: string, startDate: Date, startTime: Date, endDate?: Date, endTime?: Date) => {
+  if (d !== 'Custom' || !endDate || !endTime) return presetDurationToMin(d);
+  const start = new Date(startDate);
+  start.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+  const end = new Date(endDate);
+  end.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+  const diffMin = Math.max(1, Math.round((+end - +start) / 60000)); // min 1 min
+  return diffMin;
 };
-
 
 const DEBUG = true; // pune false când nu mai ai nevoie de loguri
 
+const buildUnix = (d: Date, t: Date) => {
+  const x = new Date(d);
+  x.setHours(t.getHours(), t.getMinutes(), 0, 0);
+  return Math.floor(x.getTime() / 1000);
+};
+
 const handleSubmit = async () => {
-  // pentru test, poți comenta validarea
-  // if (!validateForm()) return;
-
   try {
-    const startsAt = buildStartsAt(formData.date, formData.time);
-    const durationMin = durationToMin(formData.duration);
+    const startsAt = buildUnix(formData.date, formData.time);
 
-    const payload = {
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      category: formData.category,
-      startsAt,
-      durationMin,
-      location: formData.location.trim(),
-      capacity: formData.unlimitedCapacity ? '' : formData.capacity.trim(),
-      minAge: formData.minAge.trim(),
-      maxAge: formData.maxAge.trim(),
-      audience: formData.audience,
-      privacy: formData.privacy,
-      joinType: formData.joinType
+    // dacă NU e Custom → folosim durata presetată
+    const presetDurationToMin = (d: string): number => {
+      switch (d) {
+        case '30m': return 30;
+        case '1h': return 60;
+        case '1h 30m': return 90;
+        case '2h': return 120;
+        default: return 60;
+      }
     };
+
+    let durationMin: number | null = null;
+    let endAt: number | undefined;
+
+if (formData.duration === 'Custom' && formData.endDate && formData.endTime) {
+  endAt = buildUnix(formData.endDate, formData.endTime);
+  if (endAt <= startsAt) {
+    Alert.alert('Invalid end time', 'End time must be after start time.');
+    return;
+  }
+  durationMin = null;
+} else {
+  durationMin = presetDurationToMin(formData.duration);
+  endAt = undefined; // IMPORTANT
+}
+
+const payload: any = {
+  title: formData.title.trim(),
+  description: formData.description.trim(),
+  category: formData.category,
+  startsAt,
+  durationMin,
+  location: formData.location.trim(),
+  capacity: formData.unlimitedCapacity ? '' : formData.capacity.trim(),
+  minAge: formData.minAge.trim(),
+  maxAge: formData.maxAge.trim(),
+  audience: formData.audience,
+  privacy: formData.privacy,
+  joinType: formData.joinType,
+};
+if (endAt !== undefined) {
+  payload.endAt = endAt;
+}
 
     if (DEBUG) {
       console.log('➡️ [CreateEvent] URL:', `${SERVER_AJAX_URL}/events/create.php`);
@@ -166,9 +208,13 @@ const handleSubmit = async () => {
       console.log('✅ [CreateEvent] Response:', JSON.stringify(res, null, 2));
     }
 
-    Alert.alert('Success', 'Event created successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+    // Alert.alert('Success', 'Event created successfully!', [
+    //   { text: 'OK', onPress: () => router.back() }
+    // ]);
+
+    Alert.alert('Success', 'Event created successfully!');
+
+
   } catch (e: any) {
     console.error('❌ [CreateEvent] Error:', e);
     Alert.alert('Error', e?.message || 'Failed to create event');
@@ -250,17 +296,14 @@ const handleSubmit = async () => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Basics Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Basics</Text>
-              
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Title *</Text>
+                <Text style={styles.fieldLabel}>What's the name of your event?</Text>
                 <TextInput
                   style={[styles.textInput, errors.title && styles.inputError]}
                   value={formData.title}
                   onChangeText={(text) => setFormData({ ...formData, title: text })}
-                  placeholder="Enter event title"
+                  placeholder="Give your event a catchy name"
                   maxLength={60}
                 />
                 {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
@@ -268,7 +311,7 @@ const handleSubmit = async () => {
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Description</Text>
+                <Text style={styles.fieldLabel}>Event description</Text>
                 <TextInput
                   style={[styles.textArea, errors.description && styles.inputError]}
                   value={formData.description}
@@ -282,7 +325,7 @@ const handleSubmit = async () => {
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Category</Text>
+              <Text style={styles.fieldLabel}>Choose a category</Text>
                 <PillSelector
                   options={categories}
                   selected={formData.category}
@@ -291,16 +334,13 @@ const handleSubmit = async () => {
               </View>
             </View>
 
-            {/* Time & Place Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Time & Place</Text>
-              
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Date & Time *</Text>
+                <Text style={styles.fieldLabel}>Date & Time</Text>
                 <View style={styles.dateTimeContainer}>
                   <TouchableOpacity
                     style={[styles.dateTimeButton, errors.date && styles.inputError]}
-                    onPress={() => setShowDatePicker(true)}
+                    onPress={() => setDateModal(true)}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="calendar-outline" size={20} color="#8E8E93" />
@@ -309,7 +349,7 @@ const handleSubmit = async () => {
                   
                   <TouchableOpacity
                     style={styles.dateTimeButton}
-                    onPress={() => setShowTimePicker(true)}
+                    onPress={() => setTimeModal(true)}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="time-outline" size={20} color="#8E8E93" />
@@ -324,9 +364,45 @@ const handleSubmit = async () => {
                 <PillSelector
                   options={durations}
                   selected={formData.duration}
-                  onSelect={(duration) => setFormData({ ...formData, duration })}
+                  onSelect={(duration) => {
+                    const next: FormData = { ...formData, duration };
+                    if (duration === 'Custom') {
+                      const start = new Date(formData.date);
+                      start.setHours(formData.time.getHours(), formData.time.getMinutes(), 0, 0);
+                      const end   = new Date(start.getTime() + 60 * 60000);
+                      next.endDate = new Date(end);
+                      next.endTime = new Date(end);
+                    }
+                    setFormData(next);
+                    if (duration === 'Custom') setEndDateModal(true);
+                  }}
                 />
               </View>
+
+              {formData.duration === 'Custom' && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Ends</Text>
+                  <View style={styles.dateTimeContainer}>
+                    <TouchableOpacity
+                      style={styles.dateTimeButton}
+                      onPress={() => setEndDateModal(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="calendar-outline" size={20} color="#8E8E93" />
+                      <Text style={styles.dateTimeText}>{formatDate(formData.endDate as Date)}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.dateTimeButton}
+                      onPress={() => setEndTimeModal(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="time-outline" size={20} color="#8E8E93" />
+                      <Text style={styles.dateTimeText}>{formatTime(formData.endTime as Date)}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
 
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Location *</Text>
@@ -343,18 +419,15 @@ const handleSubmit = async () => {
                 {formData.location.trim() && (
                   <View style={styles.mapPreview}>
                     <Ionicons name="map" size={24} color="#8E8E93" />
-                    <Text style={styles.mapPreviewText}>Map preview for: {formData.location}</Text>
+                    <Text style={styles.mapPreviewText}>We’ll show this on the map for attendees: {formData.location}</Text>
                   </View>
                 )}
               </View>
             </View>
 
-            {/* Attendance Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Attendance</Text>
-              
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Capacity</Text>
+                <Text style={styles.fieldLabel}>How many people can join?</Text>
                 <View style={styles.capacityContainer}>
                   <View style={styles.unlimitedToggle}>
                     <Text style={styles.toggleLabel}>Unlimited</Text>
@@ -370,7 +443,7 @@ const handleSubmit = async () => {
                       style={[styles.capacityInput, errors.capacity && styles.inputError]}
                       value={formData.capacity}
                       onChangeText={(text) => setFormData({ ...formData, capacity: text })}
-                      placeholder="Max participants"
+                      placeholder="Enter max participants"
                       keyboardType="numeric"
                     />
                   )}
@@ -379,7 +452,7 @@ const handleSubmit = async () => {
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Age Range</Text>
+                <Text style={styles.fieldLabel}>Who is this event for? (Age range)</Text>
                 <View style={styles.ageRangeContainer}>
                   <TextInput
                     style={[styles.ageInput, errors.minAge && styles.inputError]}
@@ -401,7 +474,7 @@ const handleSubmit = async () => {
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Audience</Text>
+                <Text style={styles.fieldLabel}>Who can join?</Text>
                 <PillSelector
                   options={audiences}
                   selected={formData.audience}
@@ -412,10 +485,9 @@ const handleSubmit = async () => {
 
             {/* Settings Section */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Settings</Text>
               
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Privacy</Text>
+                <Text style={styles.fieldLabel}>Event visibility</Text>
                 <PillSelector
                   options={privacyOptions}
                   selected={formData.privacy}
@@ -427,7 +499,7 @@ const handleSubmit = async () => {
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Join Type</Text>
+                <Text style={styles.fieldLabel}>How can people join?</Text>
                 <PillSelector
                   options={joinTypes}
                   selected={formData.joinType}
@@ -463,34 +535,43 @@ const handleSubmit = async () => {
 
           </View>
 
-          {/* Date/Time Pickers */}
-          {showDatePicker && (
-            <DateTimePicker
-              value={formData.date}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setFormData({ ...formData, date: selectedDate });
-                }
-              }}
-            />
-          )}
+          <DateTimePickerModal
+            isVisible={isDateModal}
+            mode="date"
+            date={formData.date}
+            onConfirm={(picked) => { setDateModal(false); setFormData({ ...formData, date: picked }); }}
+            onCancel={() => setDateModal(false)}
+          />
 
-          {showTimePicker && (
-            <DateTimePicker
-              value={formData.time}
-              mode="time"
-              display="default"
-              onChange={(event, selectedTime) => {
-                setShowTimePicker(false);
-                if (selectedTime) {
-                  setFormData({ ...formData, time: selectedTime });
-                }
-              }}
-            />
-          )}
+          <DateTimePickerModal
+            isVisible={isTimeModal}
+            mode="time"
+            date={formData.time}
+            is24Hour
+            onConfirm={(picked) => { setTimeModal(false); setFormData({ ...formData, time: picked }); }}
+            onCancel={() => setTimeModal(false)}
+          />
+
+
+          <DateTimePickerModal
+            isVisible={isEndDateModal}
+            mode="date"
+            date={formData.endDate || new Date()}
+            onConfirm={(picked) => { setEndDateModal(false); setFormData({ ...formData, endDate: picked }); }}
+            onCancel={() => setEndDateModal(false)}
+          />
+
+          <DateTimePickerModal
+            isVisible={isEndTimeModal}
+            mode="time"
+            date={formData.endTime || new Date()}
+            is24Hour
+            onConfirm={(picked) => { setEndTimeModal(false); setFormData({ ...formData, endTime: picked }); }}
+            onCancel={() => setEndTimeModal(false)}
+          />
+
+
+
         </KeyboardAvoidingView>
       </SafeAreaView>
     </>
@@ -514,7 +595,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   section: {
-    marginBottom: 32,
+    // marginBottom: 32,
   },
   sectionTitle: {
     fontSize: 20,
