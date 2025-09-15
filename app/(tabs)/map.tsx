@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
@@ -12,11 +12,11 @@ type EventDTO = {
   title: string;
   description: string;
   category: 'Sport'|'Family'|'Music'|'Art'|'Health'|'Party'|'Business';
-  startsAt: number;          // unix secunde
+  startsAt: number;
   durationMin: number;
   location: string;
-  capacity: number | null;   // null = unlimited
-  latitude?: number | null;  // IMPORTANT pt hartă
+  capacity: number | null;
+  latitude?: number | null;
   longitude?: number | null;
 };
 
@@ -45,6 +45,9 @@ export default function MapScreen() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [selected, setSelected] = useState<EventDTO | null>(null);
 
+  // Folosit ca să „suprimăm” onPress-ul hărții imediat după ce ai atins un marker
+  const lastMarkerTapRef = useRef<number>(0);
+
   useEffect(() => {
     (async () => {
       try {
@@ -64,7 +67,7 @@ export default function MapScreen() {
 
   const initialRegion: Region = useMemo(
     () => ({
-      latitude: events[0]?.latitude ?? 55.6761,   // Copenhagen fallback
+      latitude: events[0]?.latitude ?? 55.6761,
       longitude: events[0]?.longitude ?? 12.5683,
       latitudeDelta: 0.08,
       longitudeDelta: 0.08,
@@ -80,9 +83,18 @@ export default function MapScreen() {
 
   const capacityText = (e: EventDTO) => {
     if (e.capacity === null || e.capacity === undefined) return '—/∞';
-    // până vei avea participanți reali, afișăm 3/total doar ca demo (poți pune 0/total)
-    const current = 3; // TODO: înlocuiește cu numărul real de participanți
+    const current = 3; // TODO: înlocuiește cu numărul real
     return `${current}/${e.capacity}`;
+  };
+
+  // Handler pentru harta întreagă — deselectează DOAR dacă n-ai atins un marker chiar acum
+  const handleMapPress = () => {
+    const now = Date.now();
+    if (now - lastMarkerTapRef.current < 250) {
+      // Tocați tap-ul hărții declanșat după marker
+      return;
+    }
+    setSelected(null);
   };
 
   return (
@@ -91,7 +103,7 @@ export default function MapScreen() {
         <ClusteredMapView
           style={styles.map}
           initialRegion={initialRegion}
-          onPress={() => setSelected(null)}
+          onPress={handleMapPress}
           spiralEnabled
           animationEnabled
           showsUserLocation={false}
@@ -99,16 +111,20 @@ export default function MapScreen() {
           clusterColor="#2F6BFF"
           clusterTextColor="#FFFFFF"
           clusterFontFamily={Platform.select({ ios: 'System', android: 'sans-serif-medium' })}
-          extent={512} // clustering mai lin pe zoom-out
+          extent={512}
         >
           {events.map((e) => (
             <Marker
               key={e.id}
               coordinate={{ latitude: e.latitude as number, longitude: e.longitude as number }}
-              onPress={() => setSelected(e)}
+              onPress={() => {
+                console.log('➡️ Marker pressed:', e.id, e.title);
+                lastMarkerTapRef.current = Date.now(); // marchează tap-ul pe marker
+                setSelected(e);
+              }}
               tracksViewChanges={false}
             >
-              {/* Marker custom – rotund + pointer, color pe categorie */}
+              {/* Marker custom */}
               <View style={styles.pin}>
                 <View style={[styles.pinBubble, { backgroundColor: categoryColor[e.category] || '#8E8E93' }]}>
                   <Ionicons name={categoryIcon[e.category] || 'location-outline'} size={16} color="#fff" />
@@ -119,9 +135,9 @@ export default function MapScreen() {
           ))}
         </ClusteredMapView>
 
-        {/* Cardul de jos, ca în mock */}
+        {/* Cardul de jos */}
         {selected && (
-          <View style={styles.bottomCardWrap}>
+          <View style={styles.bottomCardWrap} pointerEvents="box-none">
             <View style={styles.bottomCard}>
               <View style={styles.bottomLeft}>
                 <View style={[styles.cardIconWrap, { backgroundColor: categoryColor[selected.category] || '#8E8E93' }]}>
@@ -149,14 +165,13 @@ export default function MapScreen() {
   );
 }
 
-/** =============== STILURI =============== */
-/** le-am inclus complet ca să arate ca în mock; poți ajusta după brandul tău */
+/** STILURI — doar ce e relevant ca să apară cardul corect */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: { flex: 1 },
   map: { flex: 1 },
 
-  // Marker custom (pin)
+  // Marker custom (mărime normală)
   pin: { alignItems: 'center' },
   pinBubble: {
     width: 28,
@@ -186,6 +201,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0, right: 0, bottom: 16,
     paddingHorizontal: 16,
+    // IMPORTANT ca să fie peste MapView pe Android
+    zIndex: 999,
+    elevation: 9,
   },
   bottomCard: {
     flexDirection: 'row',
