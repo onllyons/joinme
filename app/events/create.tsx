@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { SERVER_AJAX_URL, useRequests } from '@/hooks/useRequests';
 
 const categories = ['Sport', 'Family', 'Music', 'Art', 'Health', 'Party', 'Business'];
 const durations = ['30m', '1h', '1h 30m', '2h', 'Custom'];
@@ -61,59 +62,121 @@ export default function CreateEventScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+  const { sendDefaultRequest } = useRequests();
 
-    // Title validation
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    } else if (formData.title.length > 60) {
-      newErrors.title = 'Title must be 60 characters or less';
-    }
 
-    // Date validation
-    const now = new Date();
-    const eventDateTime = new Date(formData.date);
-    eventDateTime.setHours(formData.time.getHours(), formData.time.getMinutes());
+  // const validateForm = (): boolean => {
+  //   const newErrors: Record<string, string> = {};
+
+  //   // Title validation
+  //   if (!formData.title.trim()) {
+  //     newErrors.title = 'Title is required';
+  //   } else if (formData.title.length > 60) {
+  //     newErrors.title = 'Title must be 60 characters or less';
+  //   }
+
+  //   // Date validation
+  //   const now = new Date();
+  //   const eventDateTime = new Date(formData.date);
+  //   eventDateTime.setHours(formData.time.getHours(), formData.time.getMinutes());
     
-    if (eventDateTime <= now) {
-      newErrors.date = 'Event must be in the future';
+  //   if (eventDateTime <= now) {
+  //     newErrors.date = 'Event must be in the future';
+  //   }
+
+  //   // Location validation
+  //   if (!formData.location.trim()) {
+  //     newErrors.location = 'Location is required';
+  //   }
+
+  //   // Capacity validation
+  //   if (!formData.unlimitedCapacity) {
+  //     const capacity = parseInt(formData.capacity);
+  //     if (!formData.capacity || isNaN(capacity) || capacity < 1 || capacity > 500) {
+  //       newErrors.capacity = 'Capacity must be between 1 and 500';
+  //     }
+  //   }
+
+  //   // Age range validation
+  //   if (formData.minAge && formData.maxAge) {
+  //     const min = parseInt(formData.minAge);
+  //     const max = parseInt(formData.maxAge);
+  //     if (min > max) {
+  //       newErrors.minAge = 'Min age cannot be greater than max age';
+  //     }
+  //   }
+
+  //   setErrors(newErrors);
+  //   return Object.keys(newErrors).length === 0;
+  // };
+
+const durationToMin = (d: string): number => {
+  switch (d) {
+    case '30m': return 30;
+    case '1h': return 60;
+    case '1h 30m': return 90;
+    case '2h': return 120;
+    default: return 60;
+  }
+};
+
+const buildStartsAt = (date: Date, time: Date) => {
+  const dt = new Date(date);
+  dt.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return Math.floor(dt.getTime() / 1000);
+};
+
+
+const DEBUG = true; // pune false când nu mai ai nevoie de loguri
+
+const handleSubmit = async () => {
+  // pentru test, poți comenta validarea
+  // if (!validateForm()) return;
+
+  try {
+    const startsAt = buildStartsAt(formData.date, formData.time);
+    const durationMin = durationToMin(formData.duration);
+
+    const payload = {
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      category: formData.category,
+      startsAt,
+      durationMin,
+      location: formData.location.trim(),
+      capacity: formData.unlimitedCapacity ? '' : formData.capacity.trim(),
+      minAge: formData.minAge.trim(),
+      maxAge: formData.maxAge.trim(),
+      audience: formData.audience,
+      privacy: formData.privacy,
+      joinType: formData.joinType
+    };
+
+    if (DEBUG) {
+      console.log('➡️ [CreateEvent] URL:', `${SERVER_AJAX_URL}/events/create.php`);
+      console.log('➡️ [CreateEvent] Payload:', JSON.stringify(payload, null, 2));
     }
 
-    // Location validation
-    if (!formData.location.trim()) {
-      newErrors.location = 'Location is required';
+    const res = await sendDefaultRequest({
+      url: `${SERVER_AJAX_URL}/events/create.php`,
+      data: payload,
+    });
+
+    if (DEBUG) {
+      console.log('✅ [CreateEvent] Response:', JSON.stringify(res, null, 2));
     }
 
-    // Capacity validation
-    if (!formData.unlimitedCapacity) {
-      const capacity = parseInt(formData.capacity);
-      if (!formData.capacity || isNaN(capacity) || capacity < 1 || capacity > 500) {
-        newErrors.capacity = 'Capacity must be between 1 and 500';
-      }
-    }
+    Alert.alert('Success', 'Event created successfully!', [
+      { text: 'OK', onPress: () => router.back() }
+    ]);
+  } catch (e: any) {
+    console.error('❌ [CreateEvent] Error:', e);
+    Alert.alert('Error', e?.message || 'Failed to create event');
+  }
+};
 
-    // Age range validation
-    if (formData.minAge && formData.maxAge) {
-      const min = parseInt(formData.minAge);
-      const max = parseInt(formData.maxAge);
-      if (min > max) {
-        newErrors.minAge = 'Min age cannot be greater than max age';
-      }
-    }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      console.log('Event data:', formData);
-      Alert.alert('Success', 'Event created successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
-    }
-  };
 
   const handleCancel = () => {
     router.back();
@@ -391,16 +454,13 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[
-                styles.createButton,
-                (!formData.title.trim() || !formData.location.trim()) && styles.createButtonDisabled
-              ]}
+              style={styles.createButton}
               onPress={handleSubmit}
               activeOpacity={0.8}
-              disabled={!formData.title.trim() || !formData.location.trim()}
             >
               <Text style={styles.createButtonText}>Create Event</Text>
             </TouchableOpacity>
+
           </View>
 
           {/* Date/Time Pickers */}

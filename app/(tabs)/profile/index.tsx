@@ -15,6 +15,12 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
     {
+        id: 'chagePassword',
+        title: 'Change Password',
+        icon: 'settings-outline',
+        route: '/(auth)/change-password'
+    },
+    {
         id: 'settings',
         title: 'Settings',
         icon: 'settings-outline',
@@ -119,7 +125,6 @@ export default function ProfileScreen() {
     };
 
     return (
-      <SafeAreaView style={styles.container}>
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
               {/* Header */}
               <View style={styles.header}>
@@ -132,12 +137,12 @@ export default function ProfileScreen() {
                     <>
                         <View style={styles.avatarContainer}>
                             <Image
-                              source={{ uri: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face' }}
+                              source={{ uri: 'https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_1280.png' }}
                               style={styles.avatar}
                             />
-                            <View style={styles.editBadge}>
+                            {/*<View style={styles.editBadge}>
                                 <Ionicons name="pencil" size={12} color="#FFFFFF" />
-                            </View>
+                            </View>*/}
                         </View>
                         <Text style={styles.userName}>{getAuthUser().name}</Text>
                     </>
@@ -178,17 +183,15 @@ export default function ProfileScreen() {
                 </View>
               )}
           </ScrollView>
-      </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F2F2F7'
-    },
+ 
     scrollView: {
-        flex: 1
+        flex: 1,
+        paddingTop: 30,
+        backgroundColor: '#F2F2F7'
     },
     header: {
         paddingHorizontal: 20,

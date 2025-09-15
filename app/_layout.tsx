@@ -6,6 +6,7 @@ import { Analytics } from '@/components/analytics/Analytics';
 import { isAuthenticated } from '@/utils/Auth';
 import { DataProvider } from '@/contexts/DataContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AuthGate } from "@/components/auth/AuthGate";
 
 const toastConfig = {
   success: (props: BaseToastProps) => (
@@ -54,6 +55,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
         <DataProvider>
+          <AuthGate>
             <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Tabs' }} />
                 {!isAuthenticated() && (
@@ -63,14 +65,14 @@ export default function RootLayout() {
                 <Stack.Screen name="mail-verify" options={{ headerShown: true, title: 'Verify email' }} />
                 <Stack.Screen name="reset-password" options={{ headerShown: true, title: 'Reset password' }} />
             </Stack>
-            <StatusBar style="auto" />
-            <Toast
-              position="top"
-              config={toastConfig}
-              onPress={() => Toast.hide()}
-            />
-            <Analytics />
+          </AuthGate>
+
+          <StatusBar style="auto" />
+          <Toast position="top" config={toastConfig} onPress={() => Toast.hide()}/>
+          <Analytics />
+
         </DataProvider>
     </ThemeProvider>
   );
 }
+

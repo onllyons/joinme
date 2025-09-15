@@ -1,18 +1,18 @@
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
+  StyleSheet,
   ScrollView,
-  FlatList,
   Image,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from 'expo-router';
+import { router } from "expo-router";
+import { SERVER_AJAX_URL, useRequests } from "@/hooks/useRequests";
 
-// Categories data
+// ---------- Categories data (păstrat) ----------
 const categories = [
   { id: "music", label: "Music", icon: "musical-notes-outline" },
   { id: "business", label: "Business", icon: "briefcase-outline" },
@@ -24,65 +24,7 @@ const categories = [
   { id: "construction", label: "Construct...", icon: "construct-outline" },
 ];
 
-// Mock data for grid cards
-const gridCards = [
-  {
-    id: "1",
-    category: "SPORT",
-    title: "Football 5v5",
-    time: "6:00 PM",
-    distance: "800 m",
-    image: "https://cdn-icons-png.flaticon.com/512/4768/4768608.png",
-    badgeColor: "#58cc02",
-    current: 4,
-    total: 10,
-  },
-  {
-    id: "2",
-    category: "FAMILY",
-    title: "Family Playdate",
-    time: "10:00 AM",
-    distance: "1 km",
-    image: "https://cdn-icons-png.flaticon.com/512/2024/2024735.png",
-    badgeColor: "#1cb0f6",
-    current: 3,
-    total: 6,
-  },
-  {
-    id: "3",
-    category: "SOCIAL",
-    title: "Concert in the Park",
-    time: "7:00 PM",
-    distance: "7.2 km",
-    image: "https://cdn-icons-png.flaticon.com/512/1974/1974848.png",
-    badgeColor: "#ff4b4b",
-    current: 8,
-    total: 10,
-  },
-  {
-    id: "4",
-    category: "SPORT",
-    title: "Paddle Tennis",
-    time: "5:30 PM",
-    distance: "3 km",
-    image: "https://cdn-icons-png.flaticon.com/512/1974/1974096.png",
-    badgeColor: "#ff9600",
-    current: 2,
-    total: 4,
-  },
-  {
-    id: "5",
-    category: "PARTY",
-    title: "Birthday Bash",
-    time: "4:00 PM",
-    distance: "2.5 km",
-    image: "https://cdn-icons-png.flaticon.com/512/2372/2372389.png",
-    badgeColor: "#ce82ff",
-    current: 10,
-    total: 10,
-  },
-];
-
+// ---------- Filter chips (păstrat UI) ----------
 const filterChips = [
   "Within 10 km",
   "Tonight",
@@ -92,14 +34,60 @@ const filterChips = [
   "This week",
 ];
 
-// Chip Component
+// ---------- Tipuri pentru date ----------
+type EventDTO = {
+  id: number;
+  userId: number;
+  title: string;
+  description: string;
+  category: "Sport" | "Family" | "Music" | "Art" | "Health" | "Party" | "Business";
+  startsAt: number;       // unix secunde
+  durationMin: number;
+  location: string;
+  capacity: number | null;
+  minAge: number | null;
+  maxAge: number | null;
+  audience: "All" | "Female" | "Male";
+  privacy: "Public" | "Private";
+  joinType: "Join directly" | "Request to join";
+  createdAt: string;
+};
+
+type GridCardItem = {
+  id: string;
+  category: string;    // ex. "SPORT"
+  title: string;
+  time: string;        // ex. "6:00 PM"
+  distance: string;    // momentan gol (nu avem din backend)
+  image: string;       // placeholder
+  badgeColor: string;  // în funcție de categorie
+  current: number;     // placeholder (0 până ai participants)
+  total: number;       // capacity sau 0 dacă unlimited
+};
+
+// ---------- helpers UI ----------
+const categoryColor: Record<string, string> = {
+  Sport: "#58cc02",
+  Family: "#1cb0f6",
+  Music: "#ff4b4b",
+  Art: "#ff9600",
+  Health: "#34C759",
+  Party: "#ce82ff",
+  Business: "#8E8E93",
+};
+
+const placeholderImg =
+  "https://cdn-icons-png.flaticon.com/512/1974/1974848.png";
+
+// ---------- Chip (păstrat) ----------
 const Chip = ({ title, onPress }: { title: string; onPress?: () => void }) => (
   <TouchableOpacity style={styles.chip} onPress={onPress} activeOpacity={0.7}>
     <Text style={styles.chipText}>{title}</Text>
   </TouchableOpacity>
 );
 
-const GridCard = ({ item, index }: { item: typeof gridCards[0]; index: number }) => (
+// ---------- Card (păstrat, doar tipul schimbat) ----------
+const GridCard = ({ item }: { item: GridCardItem }) => (
   <TouchableOpacity
     style={styles.gridCard}
     activeOpacity={0.8}
@@ -108,46 +96,48 @@ const GridCard = ({ item, index }: { item: typeof gridCards[0]; index: number })
     <View style={[styles.badge, { backgroundColor: item.badgeColor }]}>
       <Text style={styles.badgeText}>{item.category}</Text>
     </View>
-    
+
     <View style={styles.cardImageContainer}>
-      <Image 
-        source={{ uri: item.image }}
-        style={styles.cardImage}
-        resizeMode="contain"
-      />
+      <Image source={{ uri: item.image }} style={styles.cardImage} resizeMode="contain" />
     </View>
-    
+
     <Text style={styles.cardTitle} numberOfLines={2}>
       {item.title}
     </Text>
-    
+
     <View style={styles.cardFooter}>
       <View style={styles.timeRow}>
         <Ionicons name="time-outline" size={14} color="#8E8E93" />
         <Text style={styles.timeText}>{item.time}</Text>
       </View>
-      <Text style={styles.distanceText}>{item.distance}</Text>
+      <Text style={styles.distanceText}>d{item.distance}</Text>
     </View>
-    
+
     {/* People Counter */}
     <View style={styles.peopleSection}>
-      <Text style={styles.peopleText}>{item.current}/{item.total}</Text>
+      <Text style={styles.peopleText}>
+        {item.current}/{item.total}
+      </Text>
     </View>
-    
+
     {/* Progress Bar */}
     <View style={styles.progressContainer}>
       <View style={styles.progressTrack}>
-        <View 
+        <View
           style={[
-            styles.progressFill, 
-            { width: `${(item.current / item.total) * 100}%` }
-          ]} 
+            styles.progressFill,
+            {
+              width: `${
+                item.total > 0 ? Math.min(100, (item.current / item.total) * 100) : 0
+              }%`,
+            },
+          ]}
         />
       </View>
     </View>
-    
+
     {/* Join Button */}
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.joinButton}
       activeOpacity={0.8}
       onPress={() => router.push(`/events/${item.id}` as any)}
@@ -157,13 +147,53 @@ const GridCard = ({ item, index }: { item: typeof gridCards[0]; index: number })
   </TouchableOpacity>
 );
 
+// ---------- Ecranul ----------
 export default function HomeScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [cards, setCards] = useState<GridCardItem[]>([]);
+  const { sendDefaultRequest } = useRequests();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await sendDefaultRequest<{ success: boolean; events: EventDTO[] }>({
+          url: `${SERVER_AJAX_URL}/events/list.php`,
+          data: {}, // fără filtre conform cerinței
+        });
+
+        const mapped: GridCardItem[] = (res?.events || []).map((e) => {
+          const date = new Date((e.startsAt || 0) * 1000);
+          const time = isNaN(date.getTime())
+            ? ""
+            : date.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              });
+          return {
+            id: String(e.id),
+            category: (e.category || "Other").toUpperCase(),
+            title: e.title || "",
+            time,
+            distance: "", // nu avem de la server încă
+            image: placeholderImg,
+            badgeColor: categoryColor[e.category] || "#8E8E93",
+            current: 0, // TODO: pune nr. participanți când ai date
+            total: e.capacity ?? 0, // capacity sau 0 dacă unlimited
+          };
+        });
+
+        setCards(mapped);
+      } catch (err) {
+        // poți pune un toast sau fallback
+        setCards([]); // fallback: gol
+      }
+    })();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -172,9 +202,9 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Ionicons name="location-outline" size={22} color="#1C1C1E" />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.locationTexts}
-              onPress={() => router.push('/country')}
+              onPress={() => router.push("/country")}
               activeOpacity={0.7}
             >
               <Text style={styles.locationLabel}>Location</Text>
@@ -182,14 +212,18 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.7} onPress={() => router.push('/notifications')}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#1C1C1E"
-              />
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              onPress={() => router.push("/notifications")}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#1C1C1E" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton} activeOpacity={0.7} onPress={() => router.push('/events/create')}>
+            <TouchableOpacity
+              style={styles.addButton}
+              activeOpacity={0.7}
+              onPress={() => router.push("/events/create")}
+            >
               <Ionicons name="add-outline" size={24} color="#000000" />
             </TouchableOpacity>
           </View>
@@ -198,9 +232,7 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.sectionHeader}>
           <Text style={styles.greetingText}>Hello Alexa</Text>
-          <Text style={styles.sectionTitle}>
-            Let's find events near you
-          </Text>
+          <Text style={styles.sectionTitle}>Let's find events near you</Text>
         </View>
 
         {/* Search */}
@@ -255,9 +287,7 @@ export default function HomeScreen() {
                     selected && styles.categoryTileSelected,
                   ]}
                   activeOpacity={0.8}
-                  onPress={() =>
-                    setSelectedCategory(selected ? null : cat.id)
-                  }
+                  onPress={() => setSelectedCategory(selected ? null : cat.id)}
                 >
                   <Ionicons
                     name={cat.icon as any}
@@ -279,11 +309,11 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Grid Cards */}
+        {/* Grid Cards (din backend) */}
         <View style={styles.gridContainer}>
-          {gridCards.map((item, index) => (
+          {cards.map((item) => (
             <View key={item.id} style={styles.gridItemWrapper}>
-              <GridCard item={item} index={index} />
+              <GridCard item={item} />
             </View>
           ))}
         </View>
@@ -291,6 +321,9 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+// NU includ styles aici — păstrezi exact obiectul tău `styles` existent.
+
 
 const styles = StyleSheet.create({
   container: {
