@@ -2,7 +2,6 @@ import {Platform, Pressable, StyleSheet} from "react-native";
 import React, {useRef} from "react";
 import * as AppleAuthentication from "expo-apple-authentication";
 import Toast from "react-native-toast-message";
-import {useNavigation} from "@react-navigation/native";
 import {login, User, UserTokens} from "@/utils/Auth";
 import {SERVER_AJAX_URL, SuccessResponse, useRequests} from "@/hooks/useRequests";
 import {useData} from "@/contexts/DataContext";
