@@ -12,8 +12,6 @@ import {
     ScrollView
 } from 'react-native';
 import { Link } from 'expo-router';
-// ❌ remove ThemeContext
-// import { useTheme } from '@/contexts/ThemeContext';
 import { Text, Spacer } from '@/components/ui'; // dacă nu ai alias '@', folosește cale relativă
 import { SERVER_AJAX_URL, useRequests } from '@/hooks/useRequests';
 import Loader from '@/components/modals/Loader';
